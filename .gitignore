@@ -28,3 +28,6 @@ target/
 
 # VSCode files
 .vscode/
+
+# Generated geometry export files
+/output/

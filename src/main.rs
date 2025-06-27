@@ -9,7 +9,7 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    const SPHERE_RADIUS: f64 = 10.0;
+    const SPHERE_RADIUS: f64 = 100.0;
 
     let (world_res, chunk_res, output_prefix) = parse_cli_args();
 
@@ -33,7 +33,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 /// Returns `(world_resolution, chunk_resolution, output_prefix)`
 /// * `world_resolution` – H3 grid resolution for geometry (defaults to 0)
 /// * `chunk_resolution` – resolution used to split geometry into chunks (defaults to 0)
-/// * `output_prefix` – filename prefix for exported files (defaults to "output")
+/// * `output_prefix` – filename prefix for exported files (defaults to "world")
 fn parse_cli_args() -> (u8, u8, String) {
     let args: Vec<String> = env::args().collect();
 
@@ -55,7 +55,7 @@ fn parse_cli_args() -> (u8, u8, String) {
     let output_prefix = if args.len() > 3 {
         args[3].clone()
     } else {
-        String::from("output")
+        String::from("world")
     };
 
     (world_resolution, chunk_resolution, output_prefix)

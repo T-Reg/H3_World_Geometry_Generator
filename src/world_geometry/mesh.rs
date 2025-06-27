@@ -6,7 +6,7 @@ pub struct Mesh {
     pub vertices: Vec<[f32; 3]>,
     pub colors: Vec<[f32; 3]>,
     pub indices: Vec<usize>,
-    vertex_map: HashMap<[i32; 3], usize>,
+    vertex_map: HashMap<[i64; 3], usize>,
 }
 
 impl Mesh {
@@ -16,11 +16,16 @@ impl Mesh {
 
     /// Add a vertex with deduplication based on position
     pub fn add_vertex(&mut self, vertex: [f32; 3], color: [f32; 3]) -> usize {
-        // Convert to fixed precision for hashing (to handle floating point precision issues)
+        // Scale coordinates to fixed precision before hashing to deduplicate vertices
+        // that are very close together. At high H3 resolutions, vertices can be
+        // separated by very small distances. i64 provides enough range to handle
+        // the scaled coordinates while avoiding floating point precision issues.
+        const SCALE: f64 = 1_000_000_000.0; // 1e9 – 1 nanometre on a unit distance
+
         let key = [
-            (vertex[0] * 1000000.0) as i32,
-            (vertex[1] * 1000000.0) as i32,
-            (vertex[2] * 1000000.0) as i32,
+            (vertex[0] as f64 * SCALE) as i64,
+            (vertex[1] as f64 * SCALE) as i64,
+            (vertex[2] as f64 * SCALE) as i64,
         ];
         
         if let Some(&index) = self.vertex_map.get(&key) {

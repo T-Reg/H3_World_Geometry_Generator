@@ -1,5 +1,5 @@
 use h3o::{CellIndex, LatLng};
-use crate::{mesh::{Mesh, triangulate_pentagon}, geometry::lat_lng_to_3d, color::generate_random_color};
+use crate::{mesh::{Mesh, triangulate_pentagon}, geometry::lat_lng_to_3d};
 use std::path::Path;
 use super::export::export_gltf;
 
@@ -69,9 +69,6 @@ pub fn process_single_cell(
     cell_index: usize, 
     sphere_radius: f64
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Generate a random color for this cell
-    let cell_color = generate_random_color();
-    
     if cell.is_pentagon() {
         stats.pentagon_count += 1;
     } else {
@@ -89,7 +86,7 @@ pub fn process_single_cell(
         return Err("Invalid center coordinates".into());
     }
     
-    let center_idx = mesh.add_vertex(center_3d, cell_color);
+    let center_idx = mesh.add_vertex(center_3d, [1.0; 3]);
     
     // Get the boundary vertices
     let vertex_indices: Vec<_> = cell.vertexes().collect();
@@ -107,7 +104,7 @@ pub fn process_single_cell(
             continue;
         }
         
-        let vertex_idx = mesh.add_vertex(vertex_3d, cell_color);
+        let vertex_idx = mesh.add_vertex(vertex_3d, [1.0; 3]);
         boundary_indices.push(vertex_idx);
     }
     
@@ -131,7 +128,7 @@ pub fn process_single_cell(
 /// * `sphere_radius` – radius of the sphere used when projecting vertices.
 /// * `world_res` – resolution at which geometry is generated.
 /// * `chunk_res` – coarser resolution used to split work into chunks (must be < world_res).
-/// * `output_prefix` – folder (created if missing) and filename prefix for exported files.
+/// * `output_prefix` – folder and filename prefix for exported files. Results are written to `output/<output_prefix>/`.
 ///
 /// The function prints progress to stdout and returns aggregated statistics on success.
 pub fn gen_world_chunks(
@@ -174,9 +171,11 @@ pub fn gen_world_chunks(
         total_chunks, chunk_res, world_res, total_cells
     );
 
-    // Ensure output directory exists.
-    let output_dir = Path::new(output_prefix);
-    std::fs::create_dir_all(output_dir)?;
+    // Always write generated assets into the top-level `output/<prefix>` folder so that the whole
+    // directory can be safely ignored by version control (e.g. via .gitignore) while still grouping
+    // different runs (or prefixes) into separate sub-folders.
+    let output_dir = Path::new("output").join(output_prefix);
+    std::fs::create_dir_all(&output_dir)?;
 
     let mut processed_cells_total = 0usize;
     let mut global_stats = ProcessingStats::default();
@@ -202,9 +201,9 @@ pub fn gen_world_chunks(
                 chunk_stats.cells_processed += 1;
             }
 
-            // Print 10% progress intervals within chunk.
+            // Print 25% progress intervals within chunk.
             let progress_cells = cell_idx + 1;
-            if progress_cells % (total_cells_in_chunk.max(10) / 10) == 0
+            if progress_cells % (total_cells_in_chunk.max(4) / 4) == 0
                 || progress_cells == total_cells_in_chunk
             {
                 println!(

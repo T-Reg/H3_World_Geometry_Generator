@@ -43,12 +43,13 @@ cargo run --release -- 3 0 world
 ```
 Output tree:
 ```
-world/
-  world-chunk1.gltf
-  world-chunk1.bin
-  world-chunk2.gltf
-  world-chunk2.bin
-  …
+output/
+  world/
+    world-chunk1.gltf
+    world-chunk1.bin
+    world-chunk2.gltf
+    world-chunk2.bin
+    …
 ```
 
 During execution you will see progress such as current chunk, per-chunk percentage and overall percentage.
@@ -63,7 +64,6 @@ During execution you will see progress such as current chunk, per-chunk percenta
 
 The code relies on:
 * [`h3o`](https://crates.io/crates/h3o) for H3 indexing.
-* [`rand`](https://crates.io/crates/rand`) for colour generation.
 * [`serde_json`](https://crates.io/crates/serde_json`) for writing GLTF JSON.
 
 ---
