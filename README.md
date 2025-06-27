@@ -1,6 +1,6 @@
 # H3 World Geometry Generator
 
-Generate colourful GLTF meshes of the H3 discrete global grid – one file per chunk – directly from Rust.
+Generate GLTF meshes of Uber's H3 library discrete global grid.
 
 ## What does it do?
 This program walks the H3 cell hierarchy, turns every cell at a chosen *world resolution* into triangles on a sphere and exports the result as GLTF/GLB compatible data files.
