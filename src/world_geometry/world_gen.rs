@@ -221,8 +221,8 @@ pub fn gen_world_chunks(
         global_stats.invalid_coords += chunk_stats.invalid_coords;
         global_stats.cells_processed += chunk_stats.cells_processed;
 
-        // Export chunk mesh
-        let file_stem = format!("{}-chunk{}", output_prefix, chunk_idx + 1);
+        // Export chunk mesh – name files after the H3 index representing the chunk
+        let file_stem = format!("{}", chunk_cell);
         let gltf_path = output_dir.join(format!("{}.gltf", file_stem));
         let bin_path = output_dir.join(format!("{}.bin", file_stem));
 
