@@ -3,6 +3,51 @@ use crate::{mesh::{Mesh, triangulate_pentagon}, geometry::lat_lng_to_3d};
 use std::path::Path;
 use super::export::export_gltf;
 
+/// Compute a monotonically increasing ordinal for an H3 cell at the given resolution.
+fn ordinal_from_h3(cell: CellIndex, tile_res: h3o::Resolution) -> u64 {
+    // Extract base-cell (7 bits: bits 45-51).
+    let raw = u64::from(cell);
+    let base_cell = (raw >> 45) & 0x7F; // 0‥121
+
+    let mut ordinal = base_cell as u64;
+
+    // Each resolution digit occupies 3 bits starting just below the base-cell.
+    let res_i8: u8 = tile_res.into();
+    for r in 1..=res_i8 {
+        let shift = 45 - 3 * (r as u64);
+        let digit = ((raw >> shift) & 0x7) as u64; // value 0‥6
+        ordinal = ordinal * 7 + digit;
+    }
+
+    ordinal
+}
+
+/// Determine the size of a square texture atlas (power-of-two) that can
+/// accommodate `total_tiles` unique pixels. Returns the side length in pixels.
+fn texture_size_for_tiles(total_tiles: u64) -> u32 {
+    let mut size: u32 = 1;
+    while (size as u64) * (size as u64) < total_tiles {
+        size <<= 1;
+    }
+    size
+}
+
+/// Map an H3 cell to (u, v) pixel coordinates inside the texture atlas. The
+/// returned coordinates are *pixel* coordinates in the range `[0, size)` – they
+/// are **not** normalised.  Dividing by `size` in the shader will yield the
+/// usual `0‥1` UV range suitable for texture sampling.
+fn uv_from_h3(cell: CellIndex, tile_res: h3o::Resolution) -> [f32; 2] {
+    let ordinal = ordinal_from_h3(cell, tile_res);
+    let res: u8 = tile_res.into();
+    let total_tiles = 122u64 * 7u64.pow(res as u32);
+    let size = texture_size_for_tiles(total_tiles) as u64;
+
+    let x = (ordinal % size) as f32;
+    let y = (ordinal / size) as f32;
+
+    [x, y]
+}
+
 /// Statistics about H3 processing
 #[derive(Debug, Default)]
 pub struct ProcessingStats {
@@ -42,7 +87,7 @@ pub fn gen_world_geometry(
 
     // Iterate over the H3 cells
     for (i, cell) in cells.iter().enumerate() {
-        if let Err(e) = process_single_cell(&mut mesh, &mut stats, *cell, i, sphere_radius) {
+        if let Err(e) = process_single_cell(&mut mesh, &mut stats, *cell, i, sphere_radius, res_enum) {
             eprintln!("Error processing cell {}: {}", i, e);
             continue;
         }
@@ -63,11 +108,12 @@ pub fn gen_world_geometry(
 
 /// Process a single H3 cell and add it to the mesh
 pub fn process_single_cell(
-    mesh: &mut Mesh, 
-    stats: &mut ProcessingStats, 
-    cell: CellIndex, 
-    cell_index: usize, 
-    sphere_radius: f64
+    mesh: &mut Mesh,
+    stats: &mut ProcessingStats,
+    cell: CellIndex,
+    cell_index: usize,
+    sphere_radius: f64,
+    tile_res: h3o::Resolution,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if cell.is_pentagon() {
         stats.pentagon_count += 1;
@@ -86,7 +132,8 @@ pub fn process_single_cell(
         return Err("Invalid center coordinates".into());
     }
     
-    let center_idx = mesh.add_vertex(center_3d, [1.0; 3]);
+    let center_uv = uv_from_h3(cell, tile_res);
+    let center_idx = mesh.add_vertex(center_3d, center_uv);
     
     // Get the boundary vertices
     let vertex_indices: Vec<_> = cell.vertexes().collect();
@@ -104,7 +151,9 @@ pub fn process_single_cell(
             continue;
         }
         
-        let vertex_idx = mesh.add_vertex(vertex_3d, [1.0; 3]);
+        // For corner vertices we still use the parent cell's UV so that all
+        // vertices of the tile reference the same atlas pixel.
+        let vertex_idx = mesh.add_vertex(vertex_3d, center_uv);
         boundary_indices.push(vertex_idx);
     }
     
@@ -195,7 +244,7 @@ pub fn gen_world_chunks(
         let mut chunk_stats = ProcessingStats::default();
 
         for (cell_idx, world_cell) in children.iter().enumerate() {
-            if let Err(e) = process_single_cell(&mut mesh, &mut chunk_stats, *world_cell, cell_idx, sphere_radius) {
+            if let Err(e) = process_single_cell(&mut mesh, &mut chunk_stats, *world_cell, cell_idx, sphere_radius, world_res_enum) {
                 eprintln!("Error processing cell {} in chunk {}: {}", cell_idx, chunk_idx, e);
             } else {
                 chunk_stats.cells_processed += 1;

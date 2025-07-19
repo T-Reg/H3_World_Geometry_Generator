@@ -75,6 +75,7 @@ name = "h3_world_geometry_generator"
 version = "0.1.0"
 dependencies = [
  "h3o",
+ "itertools",
  "serde_json",
 ]
 
@@ -96,6 +97,15 @@ name = "h3o-bit"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fb45e8060378c0353781abf67e1917b545a6b710d0342d85b70c125af7ef320"
+
+[[package]]
+name = "itertools"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+dependencies = [
+ "either",
+]
 
 [[package]]
 name = "itoa"
